@@ -3,65 +3,57 @@ import bpy_extras
 import os
 import random
 
-# Set up the scene, objects, and camera
 scene = bpy.context.scene
 camera = scene.camera
 
-# Function to calculate 2D bounding box in image coordinates
-def calculate_bounding_box(obj, camera, render_size):
-    #Trzeba uwzględniać przesunięcie!
+def calculate_bounding_box(obj: bpy.types.Object, camera: bpy.types.Camera) -> tuple[float, float, float, float]:
+    """
+    Calculates the 2D bounding box of the object in the image.
     
-    # Get object's vertices in camera view
-    #mat_world = obj.matrix_world
-    #vertices = [camera.matrix_world.inverted() @ mat_world @ v.co for v in obj.data.vertices]
+    @param obj: object to calculate the bounding box for
+    @param camera: camera object
+    @return: (x_center, y_center, width, height) of the bounding box in normalized coordinates
+    """
+    
+    # Uwzględnienie przesunięcia - przekształcenie przez macierz zawierającą przesunięcie, skalowanie i obrót...
+    # ...wierzchołków ze współrzędnych lokalnych do współrzędnych świata
     vertices_world = [obj.matrix_world @ v.co for v in obj.data.vertices]
-    #print([v for v in vertices_world])
-    #print(vertices)
-    # Project to 2D
+  
+    # Przekształcenie do przestrzeni 2D (kamery)
     coords_2d = [bpy_extras.object_utils.world_to_camera_view(scene, camera, v) for v in vertices_world]
-    #coords_2d = [bpy_extras.object_utils.world_to_camera_view(scene, camera, v.co) for v in obj.data.vertices]
-    #print(coords_2d)
-    render_size = (scene.render.resolution_x, scene.render.resolution_y)
-    coords_pixel = [(int(v.x * render_size[0]), int((1.0 - v.y) * render_size[1])) for v in coords_2d]
-    #print(coords_pixel)
     
-    # Find min/max 2D coordinates
+    # Znalezienie minimalnych i maksymalnych współrzędnych 2D obiektu
+    # x,y to współrzędne 2D w przestrzeni kamery, a z to głebia
+    # y = 1 - y, bo normalized device coordinates (NDC) przestrzeni 2D Blendera mają (0, 0) w lewym dolnym rogu (a nie w lewym górnym tak jak standardowo)
     min_x = min([v.x for v in coords_2d])
     max_x = max([v.x for v in coords_2d])
     min_y = min([1 - v.y for v in coords_2d])
     max_y = max([1 - v.y for v in coords_2d])
     
-    print("min_x for {}: {}".format(obj.name,min_x))
-    print("max_x for {}: {}".format(obj.name,max_x))
-    print("min_y for {}: {}".format(obj.name,min_y))
-    print("max_y for {}: {}".format(obj.name,max_y))
-    
-
-    if not is_any_elements_in_range([min_x,max_x,min_y,max_y]):
+    # Sprawdzenie czy chociaż część obiektu jest w zakresie kamery
+    if not is_coord_in_camera_view([min_x,max_x,min_y,max_y]):
         return None
     
-    min_x, max_x, min_y, max_y = __handle_outside(min_x,max_x,min_y,max_y)
-    # Calculate bbox center, width, height in normalized coordinates
+    # Przycięcie współrzędnych do zakresu [0, 1] (przypadek gdy obiekt częściowo wystaje poza kamerę)
+    min_x, max_x, min_y, max_y = handle_outside(min_x,max_x,min_y,max_y)
+    
+    # Wyznaczenie współrzędnych środka i rozmiaru bounding boxa
+    # Są znormalizowane do zakresu [0, 1]
     x_center = (min_x + max_x) / 2
     y_center = (min_y + max_y) / 2
     width = max_x - min_x
     height = max_y - min_y
     
-    # warunki brzegowe
+    # Sprawdzenie, czy bounding box jest wystarczająco duży
     if width < 0.005 or height < 0.005:
         return None
     
-    #if x_center > 1 or x_center < 0:
-    #    __handle_outside(min_x, max_x, min_y, max_y)
-    #elif y_center > 1 or y_center < 0:
-    #    __handle_outside(min_x, max_x, min_y, max_y)
-    
     return x_center, y_center, width, height
 
-def is_any_elements_in_range(lst):
-    return any(0 <= elem <= 1 for elem in lst)
+def is_coord_in_camera_view(coords: list) -> bool:
+    return any(0 <= elem <= 1 for elem in coords)
 
-def __handle_outside(min_x, max_x, min_y, max_y):
+def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tuple[float, float, float, float]:
     if min_x < 0:
         min_x = 0
     if max_x > 1:
