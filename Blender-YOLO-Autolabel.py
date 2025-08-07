@@ -68,21 +68,24 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
 def render():
     # Render images and save bounding boxes
     image_set = "B"
-    output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
+    #output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
+    output_dir = scene.render.filepath
     os.makedirs(output_dir, exist_ok=True)
-
+    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "labels"), exist_ok=True)
+    
     collection = bpy.data.collections["Parts"] #~!!!!!!!!!!!!!!!!!!!
         
-    for i in range(100):
+    for i in range(scene.frame_start, scene.frame_end + 1):
         bpy.context.scene.frame_set(i)
 
         # Render image
-        image_path = os.path.join(output_dir, f"gen_{image_set}_{i:04d}.jpg")
+        image_path = os.path.join(output_dir, "images", f"gen_{image_set}_{i:04d}.jpg")
         scene.render.filepath = image_path
         bpy.ops.render.render(write_still=True)
         
         # Save bounding box data
-        with open(os.path.join(output_dir, f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
+        with open(os.path.join(output_dir, "labels", f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
             for obj in bpy.data.objects:
                 if obj.type == 'MESH' and collection in obj.users_collection:
                     bbox = calculate_bounding_box(obj, camera)
