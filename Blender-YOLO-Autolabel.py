@@ -68,6 +68,10 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
 def render():
     # Render images and save bounding boxes
     image_set = "B"
+    overwrite = scene.render.use_overwrite
+    
+    # TODO: File format and output directory settings (problems from blender )
+    
     #output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
     output_dir = scene.render.filepath
     os.makedirs(output_dir, exist_ok=True)
@@ -81,6 +85,10 @@ def render():
 
         # Render image
         image_path = os.path.join(output_dir, "images", f"gen_{image_set}_{i:04d}.jpg")
+        
+        if not overwrite and os.path.exists(image_path):
+            continue
+        
         scene.render.filepath = image_path
         bpy.ops.render.render(write_still=True)
         
