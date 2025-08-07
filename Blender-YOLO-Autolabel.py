@@ -1,7 +1,8 @@
 import bpy
 import bpy_extras
+from bpy.types import Operator
+from bpy.types import Panel
 import os
-import random
 
 scene = bpy.context.scene
 camera = scene.camera
@@ -64,34 +65,71 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
         max_y = 1
     return min_x, max_x, min_y, max_y
 
-# Render images and save bounding boxes
-image_set = "B"
-output_dir = "/Users/mateu/Desktop/Generated/{}".format(image_set)
-os.makedirs(output_dir, exist_ok=True)
+def render():
+    # Render images and save bounding boxes
+    image_set = "B"
+    output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
+    os.makedirs(output_dir, exist_ok=True)
 
-collection = bpy.data.collections["PartsTrain2"] #~!!!!!!!!!!!!!!!!!!!
-    
-for i in range(100):
-    # Adjust object positions, lighting, etc.
-    # ...
-    bpy.context.scene.frame_set(i)
-    for obj in bpy.data.objects:
-            if obj.type == 'MESH' and collection in obj.users_collection:
-                obj.rotation_euler.x = random.randrange(0,10)
-                obj.rotation_euler.y = random.randrange(0,10)
-                obj.rotation_euler.z = random.randrange(0,10)
+    collection = bpy.data.collections["Parts"] #~!!!!!!!!!!!!!!!!!!!
+        
+    for i in range(100):
+        bpy.context.scene.frame_set(i)
 
-    # Render image
-    image_path = os.path.join(output_dir, f"gen_{image_set}_{i:04d}.jpg")
-    scene.render.filepath = image_path
-    bpy.ops.render.render(write_still=True)
+        # Render image
+        image_path = os.path.join(output_dir, f"gen_{image_set}_{i:04d}.jpg")
+        scene.render.filepath = image_path
+        bpy.ops.render.render(write_still=True)
+        
+        # Save bounding box data
+        with open(os.path.join(output_dir, f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
+            for obj in bpy.data.objects:
+                if obj.type == 'MESH' and collection in obj.users_collection:
+                    bbox = calculate_bounding_box(obj, camera)
+                    if bbox is None:
+                        continue
+                    class_id = obj['class_id']  # Assuming class_id is stored in object properties
+                    f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+                    
+## classes
+
+class RunAutolabel(Operator):
+    """Run YOLO Autolabel"""
+    bl_label = "Run YOLO Autolabel"
+    bl_idname = "object.blender_yolo_autolabel"
+
+    # poll musi zwrócić True, aby wykonało się execute
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "OBJECT"
     
-    # Save bounding box data
-    with open(os.path.join(output_dir, f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH' and collection in obj.users_collection:
-                bbox = calculate_bounding_box(obj, camera, scene.render.resolution_x)
-                if bbox is None:
-                    continue
-                class_id = obj['class_id']  # Assuming class_id is stored in object properties
-                f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+    def execute(self, context):
+        render()
+        return {'FINISHED'}
+
+class AutolabelSidebar(Panel):
+    bl_label = "Blender YOLO Autolabel"
+    bl_idname = "OBJECT_PT_blender_yolo_autolabel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "YOLO Autolabel"
+
+    def draw(self, context):
+        col = self.layout.column(align=True)
+        col.operator(RunAutolabel.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
+
+classes = [
+    RunAutolabel,
+    AutolabelSidebar,
+]
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+
+if __name__ == "__main__":
+    register()
