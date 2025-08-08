@@ -85,7 +85,7 @@ def render(image_set: str, collection: bpy.types.Collection):
         bpy.context.scene.frame_set(i)
 
         # Render image
-        image_path = os.path.join(output_dir, "images", f"gen_{image_set}_{i:04d}.jpg")
+        image_path = os.path.join(output_dir, "images", f"gen_{image_set}_{i:04d}")
         
         if not overwrite and os.path.exists(image_path):
             continue
@@ -102,6 +102,8 @@ def render(image_set: str, collection: bpy.types.Collection):
                         continue
                     class_id = obj['class_id']  # Assuming class_id is stored in object properties
                     f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
+                    
+    scene.render.filepath = output_dir
                     
 ## classes
 
