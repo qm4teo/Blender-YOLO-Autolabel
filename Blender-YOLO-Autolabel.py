@@ -2,6 +2,7 @@ import bpy
 import bpy_extras
 from bpy.types import Operator
 from bpy.types import Panel
+from bpy.props import StringProperty, BoolProperty, IntProperty
 import os
 
 scene = bpy.context.scene
@@ -65,9 +66,9 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
         max_y = 1
     return min_x, max_x, min_y, max_y
 
-def render():
+def render(image_set: str, collection: bpy.types.Collection):
     # Render images and save bounding boxes
-    image_set = "B"
+    #image_set = "B"
     overwrite = scene.render.use_overwrite
     
     # TODO: File format and output directory settings (problems from blender )
@@ -78,7 +79,7 @@ def render():
     os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
     os.makedirs(os.path.join(output_dir, "labels"), exist_ok=True)
     
-    collection = bpy.data.collections["Parts"] #~!!!!!!!!!!!!!!!!!!!
+    #collection = bpy.data.collections["Parts"] #~!!!!!!!!!!!!!!!!!!!
         
     for i in range(scene.frame_start, scene.frame_end + 1):
         bpy.context.scene.frame_set(i)
@@ -115,7 +116,9 @@ class RunAutolabel(Operator):
         return context.mode == "OBJECT"
     
     def execute(self, context):
-        render()
+        image_set = context.scene.yolo_image_set
+        collection = context.scene.my_collection
+        render(image_set, collection)
         return {'FINISHED'}
 
 class AutolabelSidebar(Panel):
@@ -126,8 +129,21 @@ class AutolabelSidebar(Panel):
     bl_category = "YOLO Autolabel"
 
     def draw(self, context):
-        col = self.layout.column(align=True)
+        layout = self.layout
+        
+        # Create a box for better organization
+        #box = layout.box()
+        #box.label(text="YOLO Auto-labeling Settings:", icon="SETTINGS")
+        
+        # Draw the properties in the UI
+        #box.prop(scene, "yolo_image_set")
+        
+        # Add the operator button
+        col = layout.column(align=True)
         col.operator(RunAutolabel.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
+        col.label(text="Make sure to set camera and render settings correctly.")
+        col.prop(context.scene, "yolo_image_set")
+        col.prop(context.scene, "my_collection", text="Collection for Parts")
 
 classes = [
     RunAutolabel,
@@ -138,9 +154,20 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
+    bpy.types.Scene.yolo_image_set = StringProperty(
+        name="Image Set",
+        description="Prefix for generated files (e.g., 'A', 'B', 'train')",
+        default="B",
+        maxlen=10
+    )
+    
+    bpy.types.Scene.my_collection = bpy.props.PointerProperty(type=bpy.types.Collection)
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
+    
+    # Unregister scene properties
+    del bpy.types.Scene.yolo_image_set
 
 if __name__ == "__main__":
     register()
