@@ -164,11 +164,30 @@ class AutolabelSidebar(Panel):
         col.prop(context.scene, "yolo_class_id", text="Class ID")
         col.prop(context.scene, "my_collection", text="Collection for Parts")
         col.operator(AssignClasses.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
+        col.operator(SimpleConfirmOperator.bl_idname, text="Confirm Action", icon="CHECKMARK")
+        
+class SimpleConfirmOperator(bpy.types.Operator):
+    """Really?"""
+    bl_idname = "my_category.custom_confirm_dialog"
+    bl_label = "Do you really want to do that?"
+    bl_options = {'REGISTER', 'INTERNAL'}
 
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        self.report({'INFO'}, "YES!")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+        
 classes = [
     RunAutolabel,
     AssignClasses,
     AutolabelSidebar,
+    SimpleConfirmOperator
 ]
 
 def register():
