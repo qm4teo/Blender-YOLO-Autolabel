@@ -71,16 +71,12 @@ def render(image_set: str, collection: bpy.types.Collection):
     #image_set = "B"
     overwrite = scene.render.use_overwrite
     
-    # TODO: File format and output directory settings (problems from blender )
-    
     #output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
     output_dir = scene.render.filepath
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
     os.makedirs(os.path.join(output_dir, "labels"), exist_ok=True)
-    
-    #collection = bpy.data.collections["Parts"] #~!!!!!!!!!!!!!!!!!!!
-        
+
     for i in range(scene.frame_start, scene.frame_end + 1):
         bpy.context.scene.frame_set(i)
 
@@ -100,6 +96,7 @@ def render(image_set: str, collection: bpy.types.Collection):
                     bbox = calculate_bounding_box(obj, camera)
                     if bbox is None:
                         continue
+                    # TODO: Handle objects without class_id
                     class_id = obj['class_id']  # Assuming class_id is stored in object properties
                     f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
                     
@@ -120,7 +117,26 @@ class RunAutolabel(Operator):
     def execute(self, context):
         image_set = context.scene.yolo_image_set
         collection = context.scene.my_collection
+        if collection is None:
+            self.report({'WARNING'}, "No collection selected.")
+            return {'FINISHED'}
+        
         render(image_set, collection)
+        return {'FINISHED'}
+
+class AssignClasses(Operator):
+    """Assign class_id to selected objects"""
+    bl_label = "Assign Classes"
+    bl_idname = "object.assign_classes"
+    
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "OBJECT" and context.selected_objects
+
+    def execute(self, context):
+        for obj in context.selected_objects:
+            if obj.type == 'MESH':
+                obj['class_id'] = context.scene.yolo_class_id
         return {'FINISHED'}
 
 class AutolabelSidebar(Panel):
@@ -145,10 +161,13 @@ class AutolabelSidebar(Panel):
         col.operator(RunAutolabel.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
         col.label(text="Make sure to set camera and render settings correctly.")
         col.prop(context.scene, "yolo_image_set")
+        col.prop(context.scene, "yolo_class_id", text="Class ID")
         col.prop(context.scene, "my_collection", text="Collection for Parts")
+        col.operator(AssignClasses.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
 
 classes = [
     RunAutolabel,
+    AssignClasses,
     AutolabelSidebar,
 ]
 
@@ -163,6 +182,13 @@ def register():
         maxlen=10
     )
     
+    bpy.types.Scene.yolo_class_id = IntProperty(
+        name="Class ID",
+        description="Class ID for the selected objects",
+        default=0,
+        soft_min=0
+    )
+    
     bpy.types.Scene.my_collection = bpy.props.PointerProperty(type=bpy.types.Collection)
 def unregister():
     for cls in classes:
@@ -170,6 +196,8 @@ def unregister():
     
     # Unregister scene properties
     del bpy.types.Scene.yolo_image_set
+    del bpy.types.Scene.yolo_class_id
+    del bpy.types.Scene.my_collection
 
 if __name__ == "__main__":
     register()
