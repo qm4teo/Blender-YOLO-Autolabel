@@ -2,13 +2,13 @@ import bpy
 import bpy_extras
 from bpy.types import Operator
 from bpy.types import Panel
-from bpy.props import StringProperty, BoolProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty
 import os
 
 scene = bpy.context.scene
 camera = scene.camera
 
-def calculate_bounding_box(obj: bpy.types.Object, camera: bpy.types.Camera) -> tuple[float, float, float, float]:
+def calculate_bounding_box(obj: bpy.types.Object, camera: bpy.types.Camera, threshold: float) -> tuple[float, float, float, float]:
     """
     Calculates the 2D bounding box of the object in the image.
     
@@ -47,7 +47,7 @@ def calculate_bounding_box(obj: bpy.types.Object, camera: bpy.types.Camera) -> t
     height = max_y - min_y
     
     # Sprawdzenie, czy bounding box jest wystarczająco duży
-    if width < 0.005 or height < 0.005:
+    if width < threshold or height < threshold:
         return None
     
     return x_center, y_center, width, height
@@ -66,7 +66,7 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
         max_y = 1
     return min_x, max_x, min_y, max_y
 
-def render(image_set: str, collection: bpy.types.Collection):
+def render(image_set: str, collection: bpy.types.Collection, threshold: float):
     # Render images and save bounding boxes
     #image_set = "B"
     overwrite = scene.render.use_overwrite
@@ -93,7 +93,7 @@ def render(image_set: str, collection: bpy.types.Collection):
         with open(os.path.join(output_dir, "labels", f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
             for obj in bpy.data.objects:
                 if obj.type == 'MESH' and collection in obj.users_collection:
-                    bbox = calculate_bounding_box(obj, camera)
+                    bbox = calculate_bounding_box(obj, camera, threshold)
                     if bbox is None:
                         continue
                     # TODO: Handle objects without class_id
@@ -117,11 +117,12 @@ class RunAutolabel(Operator):
     def execute(self, context):
         image_set = context.scene.yolo_image_set
         collection = context.scene.my_collection
+        threshold = context.scene.threshold
         if collection is None:
             self.report({'WARNING'}, "No collection selected.")
             return {'FINISHED'}
         
-        render(image_set, collection)
+        render(image_set, collection, threshold)
         return {'FINISHED'}
 
 class AssignClasses(Operator):
@@ -163,6 +164,7 @@ class AutolabelSidebar(Panel):
         col.prop(context.scene, "yolo_image_set")
         col.prop(context.scene, "yolo_class_id", text="Class ID")
         col.prop(context.scene, "my_collection", text="Collection for Parts")
+        col.prop(context.scene, "threshold", text="Threshold", slider=True)
         col.operator(AssignClasses.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
         col.operator(SimpleConfirmOperator.bl_idname, text="Confirm Action", icon="CHECKMARK")
         
@@ -182,6 +184,10 @@ class SimpleConfirmOperator(bpy.types.Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
+    
+    def draw(self, context):
+        row = self.layout
+        row.label(text="Do you really want to do that?")
         
 classes = [
     RunAutolabel,
@@ -208,6 +214,14 @@ def register():
         soft_min=0
     )
     
+    bpy.types.Scene.threshold = FloatProperty(
+        name="Threshold",
+        description="Minimum width or height of object to be considered",
+        default=0.01,
+        min=0.0,
+        max=0.1
+    )
+
     bpy.types.Scene.my_collection = bpy.props.PointerProperty(type=bpy.types.Collection)
 def unregister():
     for cls in classes:
