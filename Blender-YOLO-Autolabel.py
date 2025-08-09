@@ -2,7 +2,7 @@ import bpy
 import bpy_extras
 from bpy.types import Operator
 from bpy.types import Panel
-from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, PointerProperty
 import os
 
 scene = bpy.context.scene
@@ -104,10 +104,10 @@ def render(image_set: str, collection: bpy.types.Collection, threshold: float):
                     
 ## classes
 
-class RunAutolabel(Operator):
+class YOLOAUTOLABEL_OT_run_render(Operator):
     """Run YOLO Autolabel"""
     bl_label = "Run YOLO Autolabel"
-    bl_idname = "object.blender_yolo_autolabel"
+    bl_idname = "object.yolo_autolabel_run_render"
 
     # poll musi zwrócić True, aby wykonało się execute
     @classmethod
@@ -115,20 +115,20 @@ class RunAutolabel(Operator):
         return context.mode == "OBJECT"
     
     def execute(self, context):
-        image_set = context.scene.yolo_image_set
-        collection = context.scene.my_collection
-        threshold = context.scene.threshold
+        image_set = context.scene.yolo_autolabel_image_set
+        collection = context.scene.yolo_autolabel_collection
+        threshold = context.scene.yolo_autolabel_threshold
         if collection is None:
             self.report({'WARNING'}, "No collection selected.")
-            return {'FINISHED'}
+            return {'FINISHED'} #TODO: {'CANCELLED'}
         
         render(image_set, collection, threshold)
         return {'FINISHED'}
 
-class AssignClasses(Operator):
+class YOLOAUTOLABEL_OT_assign_class_id(Operator):
     """Assign class_id to selected objects"""
     bl_label = "Assign Classes"
-    bl_idname = "object.assign_classes"
+    bl_idname = "object.yolo_autolabel_assign_class_id"
     
     @classmethod
     def poll(cls, context):
@@ -137,12 +137,12 @@ class AssignClasses(Operator):
     def execute(self, context):
         for obj in context.selected_objects:
             if obj.type == 'MESH':
-                obj['class_id'] = context.scene.yolo_class_id
+                obj['class_id'] = context.scene.yolo_autolabel_class_id
         return {'FINISHED'}
 
-class AutolabelSidebar(Panel):
+class YOLOAUTOLABEL_PT_main_panel(Panel):
     bl_label = "Blender YOLO Autolabel"
-    bl_idname = "OBJECT_PT_blender_yolo_autolabel"
+    bl_idname = "YOLOAUTOLABEL_PT_main_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "YOLO Autolabel"
@@ -155,17 +155,17 @@ class AutolabelSidebar(Panel):
         #box.label(text="YOLO Auto-labeling Settings:", icon="SETTINGS")
         
         # Draw the properties in the UI
-        #box.prop(scene, "yolo_image_set")
+        #box.prop(scene, "yolo_autolabel_image_set")
         
         # Add the operator button
         col = layout.column(align=True)
-        col.operator(RunAutolabel.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
+        col.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
         col.label(text="Make sure to set camera and render settings correctly.")
-        col.prop(context.scene, "yolo_image_set")
-        col.prop(context.scene, "yolo_class_id", text="Class ID")
-        col.prop(context.scene, "my_collection", text="Collection for Parts")
-        col.prop(context.scene, "threshold", text="Threshold", slider=True)
-        col.operator(AssignClasses.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
+        col.prop(context.scene, "yolo_autolabel_image_set")
+        col.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
+        col.prop(context.scene, "yolo_autolabel_collection", text="Collection for Parts")
+        col.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
+        col.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
         col.operator(SimpleConfirmOperator.bl_idname, text="Confirm Action", icon="CHECKMARK")
         
 class SimpleConfirmOperator(bpy.types.Operator):
@@ -190,9 +190,9 @@ class SimpleConfirmOperator(bpy.types.Operator):
         row.label(text="Do you really want to do that?")
         
 classes = [
-    RunAutolabel,
-    AssignClasses,
-    AutolabelSidebar,
+    YOLOAUTOLABEL_OT_run_render,
+    YOLOAUTOLABEL_OT_assign_class_id,
+    YOLOAUTOLABEL_PT_main_panel,
     SimpleConfirmOperator
 ]
 
@@ -200,21 +200,21 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.yolo_image_set = StringProperty(
+    bpy.types.Scene.yolo_autolabel_image_set = StringProperty(
         name="Image Set",
         description="Prefix for generated files (e.g., 'A', 'B', 'train')",
         default="B",
         maxlen=10
     )
     
-    bpy.types.Scene.yolo_class_id = IntProperty(
+    bpy.types.Scene.yolo_autolabel_class_id = IntProperty(
         name="Class ID",
         description="Class ID for the selected objects",
         default=0,
         soft_min=0
     )
     
-    bpy.types.Scene.threshold = FloatProperty(
+    bpy.types.Scene.yolo_autolabel_threshold = FloatProperty(
         name="Threshold",
         description="Minimum width or height of object to be considered",
         default=0.01,
@@ -222,15 +222,21 @@ def register():
         max=0.1
     )
 
-    bpy.types.Scene.my_collection = bpy.props.PointerProperty(type=bpy.types.Collection)
+    bpy.types.Scene.yolo_autolabel_collection = PointerProperty( # Pointer bo wskazuje na istniejącą już kolekcję
+        name="My Collection",
+        description="Collection for storing objects",
+        type=bpy.types.Collection
+    )
+    
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
     
     # Unregister scene properties
-    del bpy.types.Scene.yolo_image_set
-    del bpy.types.Scene.yolo_class_id
-    del bpy.types.Scene.my_collection
+    del bpy.types.Scene.yolo_autolabel_image_set
+    del bpy.types.Scene.yolo_autolabel_class_id
+    del bpy.types.Scene.yolo_autolabel_threshold
+    del bpy.types.Scene.yolo_autolabel_collection
 
 if __name__ == "__main__":
     register()
