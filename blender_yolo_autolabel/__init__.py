@@ -13,3 +13,13 @@ bl_info = {
     "category": "Objects"
 }
 
+from . import addon
+
+def register():
+    addon.register()
+    
+def unregister():
+    addon.unregister()
+    
+if __name__ == "__main__":
+    register()
