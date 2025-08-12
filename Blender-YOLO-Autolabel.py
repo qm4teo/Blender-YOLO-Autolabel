@@ -114,6 +114,9 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
     def poll(cls, context):
         return context.mode == "OBJECT"
     
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event, title="Are you sure?", message="Running Autolabel will make Blender unresponsive until render is completed.\n You can view progress in the system console.", icon='QUESTION')
+
     def execute(self, context):
         image_set = context.scene.yolo_autolabel_image_set
         collection = context.scene.yolo_autolabel_collection
@@ -166,45 +169,13 @@ class YOLOAUTOLABEL_PT_main_panel(Panel):
         box2.prop(context.scene, "yolo_autolabel_collection", text="Target Collection:")
         box2.prop(context.scene, "yolo_autolabel_image_set")
         box2.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
+        box2.label(text="Note: Make sure to set camera and render settings correctly.")
         box2.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
-        
-        # Add the operator button
-        col = layout.column(align=True)
-        #col.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
-        col.label(text="Make sure to set camera and render settings correctly.")
-        #col.prop(context.scene, "yolo_autolabel_image_set")
-        #col.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
-        #col.prop(context.scene, "yolo_autolabel_collection", text="Collection for Parts")
-        #col.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
-        #col.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
-        col.operator(SimpleConfirmOperator.bl_idname, text="Confirm Action", icon="CHECKMARK")
-        
-class SimpleConfirmOperator(bpy.types.Operator):
-    """Really?"""
-    bl_idname = "my_category.custom_confirm_dialog"
-    bl_label = "Do you really want to do that?"
-    bl_options = {'REGISTER', 'INTERNAL'}
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, context):
-        self.report({'INFO'}, "YES!")
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-    
-    def draw(self, context):
-        row = self.layout
-        row.label(text="Do you really want to do that?")
         
 classes = [
     YOLOAUTOLABEL_OT_run_render,
     YOLOAUTOLABEL_OT_assign_class_id,
-    YOLOAUTOLABEL_PT_main_panel,
-    SimpleConfirmOperator
+    YOLOAUTOLABEL_PT_main_panel
 ]
 
 def register():
