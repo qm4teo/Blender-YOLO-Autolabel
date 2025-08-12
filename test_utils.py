@@ -1,3 +1,5 @@
+# Copyright (C) 2025 - Mateusz Kuc
+
 import re
 import cv2
 import matplotlib.pyplot as plt
