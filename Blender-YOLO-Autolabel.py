@@ -80,9 +80,9 @@ def render(image_set: str, collection: bpy.types.Collection, threshold: float):
     for i in range(scene.frame_start, scene.frame_end + 1):
         bpy.context.scene.frame_set(i)
 
-        # Render image
-        image_path = os.path.join(output_dir, "images", f"gen_{image_set}_{i:04d}")
-        
+        # Render image   
+        image_path = os.path.join(output_dir, "images", f"{image_set}_{i:04d}" if image_set else f"{i:04d}")
+
         if not overwrite and os.path.exists(image_path):
             continue
         
@@ -90,14 +90,19 @@ def render(image_set: str, collection: bpy.types.Collection, threshold: float):
         bpy.ops.render.render(write_still=True)
         
         # Save bounding box data
-        with open(os.path.join(output_dir, "labels", f"gen_{image_set}_{i:04d}.txt"), 'w') as f:
+        with open(os.path.join(output_dir, "labels", f"{image_set}_{i:04d}.txt" if image_set else f"{i:04d}.txt"), 'w') as f:
             for obj in bpy.data.objects:
                 if obj.type == 'MESH' and collection in obj.users_collection:
+                    
+                    if 'class_id' not in obj:
+                        continue
+                    
+                    class_id = obj['class_id']
+                    
                     bbox = calculate_bounding_box(obj, camera, threshold)
                     if bbox is None:
                         continue
-                    # TODO: Handle objects without class_id
-                    class_id = obj['class_id']  # Assuming class_id is stored in object properties
+                    
                     f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
                     
     scene.render.filepath = output_dir
@@ -123,7 +128,7 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
         threshold = context.scene.yolo_autolabel_threshold
         if collection is None:
             self.report({'WARNING'}, "No collection selected.")
-            return {'FINISHED'} #TODO: {'CANCELLED'}
+            return {'CANCELLED'}
         
         render(image_set, collection, threshold)
         return {'FINISHED'}
@@ -184,7 +189,7 @@ def register():
 
     bpy.types.Scene.yolo_autolabel_image_set = StringProperty(
         name="Image Set",
-        description="Prefix for generated files (e.g., 'A', 'B', 'train')",
+        description="Prefix name for generated files (e.g., 'A', 'B', 'train')",
         default="A",
         maxlen=10
     )
