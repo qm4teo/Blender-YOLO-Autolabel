@@ -168,6 +168,7 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
             return {'CANCELLED'}
 
         render(image_set, collection, scene, scene.camera, threshold)
+        self.report({'INFO'}, f"Finished rendering of {context.scene.frame_end - context.scene.frame_start + 1} frames with labels.")
         return {'FINISHED'}
 
 class YOLOAUTOLABEL_OT_assign_class_id(Operator):
