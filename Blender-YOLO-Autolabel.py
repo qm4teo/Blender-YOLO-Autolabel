@@ -153,6 +153,7 @@ class YOLOAUTOLABEL_OT_assign_class_id(Operator):
         for obj in context.selected_objects:
             if obj.type == 'MESH':
                 obj['class_id'] = context.scene.yolo_autolabel_class_id
+        self.report({'INFO'}, f"Assigned class_id={context.scene.yolo_autolabel_class_id} to {len(context.selected_objects)} selected objects.")
         return {'FINISHED'}
 
 class YOLOAUTOLABEL_PT_main_panel(Panel):
@@ -181,7 +182,7 @@ class YOLOAUTOLABEL_PT_main_panel(Panel):
         box2.prop(context.scene, "yolo_autolabel_image_set")
         box2.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
         box2.label(text="Note: Make sure to set camera and render settings correctly.")
-        box2.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
+        box2.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="RENDER_STILL")
         
 classes = [
     YOLOAUTOLABEL_OT_run_render,
