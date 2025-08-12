@@ -126,9 +126,10 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
         return {'FINISHED'}
 
 class YOLOAUTOLABEL_OT_assign_class_id(Operator):
-    """Assign class_id to selected objects"""
+    """Assign Class ID to selected objects"""
     bl_label = "Assign Classes"
     bl_idname = "object.yolo_autolabel_assign_class_id"
+    bl_options = {'REGISTER', 'UNDO'}
     
     @classmethod
     def poll(cls, context):
@@ -151,21 +152,31 @@ class YOLOAUTOLABEL_PT_main_panel(Panel):
         layout = self.layout
         
         # Create a box for better organization
-        #box = layout.box()
-        #box.label(text="YOLO Auto-labeling Settings:", icon="SETTINGS")
+        box = layout.box()
+        box.label(text="Object Settings", icon="MOD_WIREFRAME")
         
         # Draw the properties in the UI
         #box.prop(scene, "yolo_autolabel_image_set")
+        box.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
+        box.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Class ID to Selected Objects", icon="GROUP_UVS")
+        
+        box2 = layout.box()
+        box2.label(text="Output Settings", icon="SETTINGS")
+        
+        box2.prop(context.scene, "yolo_autolabel_collection", text="Target Collection:")
+        box2.prop(context.scene, "yolo_autolabel_image_set")
+        box2.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
+        box2.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
         
         # Add the operator button
         col = layout.column(align=True)
-        col.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
+        #col.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="IMPORT")
         col.label(text="Make sure to set camera and render settings correctly.")
-        col.prop(context.scene, "yolo_autolabel_image_set")
-        col.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
-        col.prop(context.scene, "yolo_autolabel_collection", text="Collection for Parts")
-        col.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
-        col.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
+        #col.prop(context.scene, "yolo_autolabel_image_set")
+        #col.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
+        #col.prop(context.scene, "yolo_autolabel_collection", text="Collection for Parts")
+        #col.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
+        #col.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Classes to Selected Objects", icon="GROUP_UVS")
         col.operator(SimpleConfirmOperator.bl_idname, text="Confirm Action", icon="CHECKMARK")
         
 class SimpleConfirmOperator(bpy.types.Operator):
@@ -203,7 +214,7 @@ def register():
     bpy.types.Scene.yolo_autolabel_image_set = StringProperty(
         name="Image Set",
         description="Prefix for generated files (e.g., 'A', 'B', 'train')",
-        default="B",
+        default="A",
         maxlen=10
     )
     
@@ -223,8 +234,8 @@ def register():
     )
 
     bpy.types.Scene.yolo_autolabel_collection = PointerProperty( # Pointer bo wskazuje na istniejącą już kolekcję
-        name="My Collection",
-        description="Collection for storing objects",
+        name="Target Collection",
+        description="Only objects in this collection will be labeled",
         type=bpy.types.Collection
     )
     
