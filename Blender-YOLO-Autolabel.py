@@ -5,15 +5,17 @@ from bpy.types import Panel
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, PointerProperty
 import os
 
-scene = bpy.context.scene
-camera = scene.camera
+# scene = bpy.context.scene
+# camera = scene.camera
 
-def calculate_bounding_box(obj: bpy.types.Object, camera: bpy.types.Camera, threshold: float) -> tuple[float, float, float, float]:
+def calculate_bounding_box(obj: bpy.types.Object, scene: bpy.types.Scene, camera: bpy.types.Camera, threshold: float) -> tuple[float, float, float, float]:
     """
     Calculates the 2D bounding box of the object in the image.
     
     @param obj: object to calculate the bounding box for
+    @param scene: scene object
     @param camera: camera object
+    @param threshold: minimum size of the bounding box
     @return: (x_center, y_center, width, height) of the bounding box in normalized coordinates
     """
     
@@ -66,7 +68,7 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
         max_y = 1
     return min_x, max_x, min_y, max_y
 
-def render(image_set: str, collection: bpy.types.Collection, threshold: float):
+def render(image_set: str, collection: bpy.types.Collection, scene: bpy.types.Scene, camera: bpy.types.Camera, threshold: float):
     # Render images and save bounding boxes
     #image_set = "B"
     overwrite = scene.render.use_overwrite
@@ -99,7 +101,7 @@ def render(image_set: str, collection: bpy.types.Collection, threshold: float):
                     
                     class_id = obj['class_id']
                     
-                    bbox = calculate_bounding_box(obj, camera, threshold)
+                    bbox = calculate_bounding_box(obj, scene, camera, threshold)
                     if bbox is None:
                         continue
                     
@@ -120,17 +122,21 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
         return context.mode == "OBJECT"
     
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event, title="Are you sure?", message="Running Autolabel will make Blender unresponsive until render is completed.\n You can view progress in the system console.", icon='QUESTION')
+        return context.window_manager.invoke_confirm(self, event, title="Are you sure?", 
+                                                     message="Running Autolabel will make Blender unresponsive until render is completed.\n You can view progress in the system console.", 
+                                                     icon='QUESTION')
 
     def execute(self, context):
         image_set = context.scene.yolo_autolabel_image_set
         collection = context.scene.yolo_autolabel_collection
         threshold = context.scene.yolo_autolabel_threshold
+        scene = context.scene
+        
         if collection is None:
             self.report({'WARNING'}, "No collection selected.")
             return {'CANCELLED'}
-        
-        render(image_set, collection, threshold)
+
+        render(image_set, collection, scene, scene.camera, threshold)
         return {'FINISHED'}
 
 class YOLOAUTOLABEL_OT_assign_class_id(Operator):
