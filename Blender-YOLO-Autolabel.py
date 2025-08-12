@@ -2,6 +2,7 @@ import bpy
 import bpy_extras
 from bpy.types import Operator
 from bpy.types import Panel
+from bpy.types import PropertyGroup
 from bpy.props import StringProperty, BoolProperty, IntProperty, FloatProperty, PointerProperty
 import os
 
@@ -111,6 +112,35 @@ def render(image_set: str, collection: bpy.types.Collection, scene: bpy.types.Sc
                     
 ## classes
 
+class YOLOAUTOLABEL_Properties(PropertyGroup):
+    image_set: StringProperty(
+        name="Image Set",
+        description="Prefix name for generated files (e.g., 'A', 'B', 'train')",
+        default="A",
+        maxlen=10
+    )
+    
+    class_id: IntProperty(
+        name="Class ID",
+        description="Class ID for the selected objects",
+        default=0,
+        soft_min=0
+    )
+    
+    threshold: FloatProperty(
+        name="Threshold",
+        description="Minimum width or height of object to be considered",
+        default=0.01,
+        min=0.0,
+        max=0.1
+    )
+
+    collection: PointerProperty(
+        name="Target Collection",
+        description="Only objects in this collection will be labeled",
+        type=bpy.types.Collection
+    )
+
 class YOLOAUTOLABEL_OT_run_render(Operator):
     """Run YOLO Autolabel"""
     bl_label = "Run YOLO Autolabel"
@@ -127,9 +157,10 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
                                                      icon='QUESTION')
 
     def execute(self, context):
-        image_set = context.scene.yolo_autolabel_image_set
-        collection = context.scene.yolo_autolabel_collection
-        threshold = context.scene.yolo_autolabel_threshold
+        props = context.scene.yolo_autolabel
+        image_set = props.image_set
+        collection = props.collection
+        threshold = props.threshold
         scene = context.scene
         
         if collection is None:
@@ -152,8 +183,8 @@ class YOLOAUTOLABEL_OT_assign_class_id(Operator):
     def execute(self, context):
         for obj in context.selected_objects:
             if obj.type == 'MESH':
-                obj['class_id'] = context.scene.yolo_autolabel_class_id
-        self.report({'INFO'}, f"Assigned class_id={context.scene.yolo_autolabel_class_id} to {len(context.selected_objects)} selected objects.")
+                obj['class_id'] = context.scene.yolo_autolabel.class_id
+        self.report({'INFO'}, f"Assigned class_id={context.scene.yolo_autolabel.class_id} to {len(context.selected_objects)} selected objects.")
         return {'FINISHED'}
 
 class YOLOAUTOLABEL_PT_main_panel(Panel):
@@ -165,26 +196,23 @@ class YOLOAUTOLABEL_PT_main_panel(Panel):
 
     def draw(self, context):
         layout = self.layout
+        props = context.scene.yolo_autolabel  # Get property group
         
         # Create a box for better organization
         box = layout.box()
         box.label(text="Object Settings", icon="MOD_WIREFRAME")
-        
-        # Draw the properties in the UI
-        #box.prop(scene, "yolo_autolabel_image_set")
-        box.prop(context.scene, "yolo_autolabel_class_id", text="Class ID")
+        box.prop(props, "class_id", text="Class ID")
         box.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Class ID to Selected Objects", icon="GROUP_UVS")
         
         box2 = layout.box()
         box2.label(text="Output Settings", icon="SETTINGS")
-        
-        box2.prop(context.scene, "yolo_autolabel_collection", text="Target Collection:")
-        box2.prop(context.scene, "yolo_autolabel_image_set")
-        box2.prop(context.scene, "yolo_autolabel_threshold", text="Threshold", slider=True)
-        box2.label(text="Note: Make sure to set camera and render settings correctly.")
+        box2.prop(props, "collection", text="Target Collection:")
+        box2.prop(props, "image_set")
+        box2.prop(props, "threshold", text="Threshold", slider=True)
         box2.operator(YOLOAUTOLABEL_OT_run_render.bl_idname, text="Run YOLO Autolabel", icon="RENDER_STILL")
         
 classes = [
+    YOLOAUTOLABEL_Properties,
     YOLOAUTOLABEL_OT_run_render,
     YOLOAUTOLABEL_OT_assign_class_id,
     YOLOAUTOLABEL_PT_main_panel
@@ -194,43 +222,17 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.yolo_autolabel_image_set = StringProperty(
-        name="Image Set",
-        description="Prefix name for generated files (e.g., 'A', 'B', 'train')",
-        default="A",
-        maxlen=10
-    )
-    
-    bpy.types.Scene.yolo_autolabel_class_id = IntProperty(
-        name="Class ID",
-        description="Class ID for the selected objects",
-        default=0,
-        soft_min=0
-    )
-    
-    bpy.types.Scene.yolo_autolabel_threshold = FloatProperty(
-        name="Threshold",
-        description="Minimum width or height of object to be considered",
-        default=0.01,
-        min=0.0,
-        max=0.1
+    bpy.types.Scene.yolo_autolabel = PointerProperty(
+        name="YOLO Autolabel",
+        description="YOLO Autolabel properties",
+        type=YOLOAUTOLABEL_Properties
     )
 
-    bpy.types.Scene.yolo_autolabel_collection = PointerProperty( # Pointer bo wskazuje na istniejącą już kolekcję
-        name="Target Collection",
-        description="Only objects in this collection will be labeled",
-        type=bpy.types.Collection
-    )
-    
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    
-    # Unregister scene properties
-    del bpy.types.Scene.yolo_autolabel_image_set
-    del bpy.types.Scene.yolo_autolabel_class_id
-    del bpy.types.Scene.yolo_autolabel_threshold
-    del bpy.types.Scene.yolo_autolabel_collection
+
+    del bpy.types.Scene.yolo_autolabel
 
 if __name__ == "__main__":
     register()
