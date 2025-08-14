@@ -66,16 +66,19 @@ class YOLOAUTOLABEL_OT_assign_class_id(Operator):
     bl_idname = "object.yolo_autolabel_assign_class_id"
     bl_options = {'REGISTER', 'UNDO'}
     
+    # poll must return True to execute
     @classmethod
     def poll(cls, context):
         return context.mode == "OBJECT" and context.selected_objects
 
     def execute(self, context):
+        n = 0
         for obj in context.selected_objects:
             if obj.type == 'MESH':
                 obj['class_id'] = context.scene.yolo_autolabel.class_id
-                
-        self.report({'INFO'}, f"Assigned class_id={context.scene.yolo_autolabel.class_id} to {len(context.selected_objects)} selected objects.")
+                n += 1
+
+        self.report({'INFO'}, f"Assigned class_id={context.scene.yolo_autolabel.class_id} to {n} selected objects.")
         return {'FINISHED'}
     
 class YOLOAUTOLABEL_OT_run_render(Operator):
@@ -83,7 +86,6 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
     bl_label = "Run YOLO Autolabel"
     bl_idname = "object.yolo_autolabel_run_render"
 
-    # poll musi zwrócić True, aby wykonało się execute
     @classmethod
     def poll(cls, context):
         return context.mode == "OBJECT"
@@ -95,7 +97,7 @@ class YOLOAUTOLABEL_OT_run_render(Operator):
                                                      icon='QUESTION')
 
     def execute(self, context):
-        props = context.scene.yolo_autolabel
+        props = context.scene.yolo_autolabel # Get property group
         image_set = props.image_set
         collection = props.collection
         threshold = props.threshold
@@ -124,13 +126,14 @@ class YOLOAUTOLABEL_PT_main_panel(Panel):
     def draw(self, context):
         layout = self.layout
         props = context.scene.yolo_autolabel  # Get property group
-        
-        # Create a box for better organization
+
+        # First box - Object Settings
         box = layout.box()
         box.label(text="Object Settings", icon="MOD_WIREFRAME")
         box.prop(props, "class_id", text="Class ID")
         box.operator(YOLOAUTOLABEL_OT_assign_class_id.bl_idname, text="Assign Class ID to Selected Objects", icon="GROUP_UVS")
-        
+
+        # Second box - Output Settings
         box2 = layout.box()
         box2.label(text="Output Settings", icon="SETTINGS")
         box2.prop(props, "collection", text="Target Collection:")

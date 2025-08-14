@@ -29,36 +29,35 @@ def calculate_bounding_box(obj: bpy.types.Object, scene: bpy.types.Scene, camera
     @return: (x_center, y_center, width, height) of the bounding box in normalized coordinates
     """
     
-    # Uwzględnienie przesunięcia - przekształcenie przez macierz zawierającą przesunięcie, skalowanie i obrót...
-    # ...wierzchołków ze współrzędnych lokalnych do współrzędnych świata
+    # Transform vertices from local to global coordinates with obj.matrix_world (location, scale, rotation)
     vertices_world = [obj.matrix_world @ v.co for v in obj.data.vertices]
   
-    # Przekształcenie do przestrzeni 2D (kamery)
+    # Transform to 2D space (camera)
     coords_2d = [bpy_extras.object_utils.world_to_camera_view(scene, camera, v) for v in vertices_world]
     
-    # Znalezienie minimalnych i maksymalnych współrzędnych 2D obiektu
-    # x,y to współrzędne 2D w przestrzeni kamery, a z to głebia
-    # y = 1 - y, bo normalized device coordinates (NDC) przestrzeni 2D Blendera mają (0, 0) w lewym dolnym rogu (a nie w lewym górnym tak jak standardowo)
+    # Find min/max 2D coordinates
+    # x,y is 2D coordinates in camera space, z is depth
+    # y = 1 - y, because normalized device coordinates (NDC) in Blender's 2D space have (0, 0) at the bottom left corner (not the top left like standard)
     min_x = min([v.x for v in coords_2d])
     max_x = max([v.x for v in coords_2d])
     min_y = min([1 - v.y for v in coords_2d])
     max_y = max([1 - v.y for v in coords_2d])
-    
-    # Sprawdzenie czy chociaż część obiektu jest w zakresie kamery
+
+    # Check if any part of the object is within the camera view
     if not is_coord_in_camera_view([min_x,max_x,min_y,max_y]):
         return None
-    
-    # Przycięcie współrzędnych do zakresu [0, 1] (przypadek gdy obiekt częściowo wystaje poza kamerę)
+
+    # Clip coordinates to the range [0, 1] (case when the object partially extends beyond the camera view)
     min_x, max_x, min_y, max_y = handle_outside(min_x,max_x,min_y,max_y)
-    
-    # Wyznaczenie współrzędnych środka i rozmiaru bounding boxa
-    # Są znormalizowane do zakresu [0, 1]
+
+    # Calculate the center and size of the bounding box
+    # These are normalized to the range [0, 1]
     x_center = (min_x + max_x) / 2
     y_center = (min_y + max_y) / 2
     width = max_x - min_x
     height = max_y - min_y
-    
-    # Sprawdzenie, czy bounding box jest wystarczająco duży
+
+    # Check if the bounding box is large enough
     if width < threshold or height < threshold:
         return None
     
@@ -79,11 +78,18 @@ def handle_outside(min_x: float, max_x: float, min_y: float, max_y: float) -> tu
     return min_x, max_x, min_y, max_y
 
 def render(image_set: str, collection: bpy.types.Collection, scene: bpy.types.Scene, camera: bpy.types.Camera, threshold: float) -> None:
-    # Render images and save bounding boxes
-    #image_set = "B"
-    overwrite = scene.render.use_overwrite
+    """
+    Render images and save bounding boxes.
     
-    #output_dir = "/Users/mateu/Desktop/Blender-YOLO-Autolabel/{}".format(image_set)
+    @param image_set: Prefix for output image and label files
+    @param collection: Collection of objects to render
+    @param scene: Scene to render
+    @param camera: Camera to use for rendering
+    @param threshold: Minimum size of bounding box to consider
+    """
+    overwrite = scene.render.use_overwrite
+
+    # Create output directories
     output_dir = scene.render.filepath
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
@@ -105,7 +111,6 @@ def render(image_set: str, collection: bpy.types.Collection, scene: bpy.types.Sc
         with open(os.path.join(output_dir, "labels", f"{image_set}_{i:04d}.txt" if image_set else f"{i:04d}.txt"), 'w') as f:
             for obj in bpy.data.objects:
                 if obj.type == 'MESH' and collection in obj.users_collection:
-                    
                     if 'class_id' not in obj:
                         continue
                     
@@ -116,5 +121,6 @@ def render(image_set: str, collection: bpy.types.Collection, scene: bpy.types.Sc
                         continue
                     
                     f.write(f"{class_id} {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}\n")
-                    
+    
+    # After finished rendering set output path to original (so it stays the same)                
     scene.render.filepath = output_dir
