@@ -15,10 +15,10 @@ Before             |  After
 >[!Note]
 > Blender 4.1 or newer required.
 
-First, [download latest Release]() of the add-on. Then open [Blender](https://www.blender.org/) and install add-on by selecting downloaded `.zip` file (without unzipping).
+First, [download latest Release](https://github.com/qm4teo/Blender-YOLO-Autolabel/releases/latest) of the add-on. Then open [Blender](https://www.blender.org/) and install add-on by selecting downloaded `.zip` file (without unzipping).
 ![Install Instructions: Edit -> Preferences -> Add-ons -> Install from Disk...](docs/images/install_1.jpg)
 
-After installing it can be found in the right Sidebar (Can be shown with `N` button if is hidden).
+After installing it can be found in the right Sidebar (can be shown with `N` button if it's hidden).
 ![Sidebar add-on location](docs/images/install_2.jpg)
 
 ### 2. Add objects and create scene ❇️
@@ -30,7 +30,7 @@ Add (create or import) objects that will be labeled with bounding boxes.
 ### 3. Prepare for labeling 🔢
 
 >[!Warning]
-> Remember to **apply / bake** to keyframes all camera's transforms and modifieres as well as objects'!
+> Remember to **apply / bake** to keyframes all camera's transforms and modifieres!
 
 #### a) Set Class ID
 
@@ -43,7 +43,7 @@ Select all objects that should be of given class (it can be changed to any non-n
 
 Only objects inside this collection will be considered for labeling.
 
-#### c) Set Image Set prefix (optional)
+#### c) Set Image prefix (optional)
 
 Specify prefix for output images and labels. For example, `Image Set: A` will result in files `A_0001.jpg`, `A_0001.txt`...
 
@@ -58,16 +58,16 @@ Threshold = 0.01          |  Threshold = 0.05
 ### 4. Run ▶️
 
 >[!Note]
-> All output settings such as location, file format, and frame range are **taken from render settings**. Remember to set them before!
+> All output settings such as location, file format, and frame range are **taken from render settings**. Remember to set them beforehand!
+
+When everything is ready, hit `Run YOLO Autolabel` and wait for results! 🕑
 
 >[!Warning]
->After running script, Blender will start rendering with labels, however it won't show progress and will be unresponsive until it finished. However, progress can be seen through system console `Window` -> `Toogle System Console`.
-
-When everything is ready, hit `Run YOLO Autolabel` and wait for results!
+>After running script, Blender will start rendering with labels, however it will be unresponsive until finished. Progress can be seen through system console `Window` -> `Toogle System Console`.
 
 ## Output structure ⏏️
 
-Inside location specified by Blender Output Preferences there will be created folders with `images` and `labels`, each frame having corresponding label and name based on prefix and frame number.
+Inside location specified by Blender Output Preferences there will be folders with `images` and `labels`, each frame having corresponding label and name based on prefix and frame number.
 
 ```text
 .
@@ -80,11 +80,13 @@ Inside location specified by Blender Output Preferences there will be created fo
 │   ├── 0001.txt
 │   ├── 0002.txt
 │   └── ...
+├── (test_output.ipynb)
+├── (test_utils.py)
 └── ...
 ```
 
 Each `label` contains **all** bounding boxes visible in image, in format:
-`cls_id relative_x_center relative_y_center relative_width relative_height`.
+`class_id relative_x_center relative_y_center relative_width relative_height`.
 
 ```text
 0 0.585938 0.595833 0.184375 0.275000
@@ -95,4 +97,4 @@ Each `label` contains **all** bounding boxes visible in image, in format:
 
 ## View and check resuls ✅
 
-To see if labels are generated as expected, `test_output.ipynb` (using `test_utils.py`, `matplotlib`, `re`, `opencv`) contains sample code to do so.
+To see if labels are generated as expected, open and run `test_output.ipynb` (it uses `test_utils.py`, `matplotlib`, `re`, `opencv`).
