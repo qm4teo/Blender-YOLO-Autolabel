@@ -15,7 +15,7 @@ Before             |  After
 >[!Note]
 > Blender 4.1 or newer required.
 
-First, [download latest Release](https://github.com/qm4teo/Blender-YOLO-Autolabel/releases/latest) of the add-on. Then open [Blender](https://www.blender.org/) and install add-on by selecting downloaded `.zip` file (without unzipping).
+First, [download latest Release](https://github.com/qm4teo/Blender-YOLO-Autolabel/releases/latest) of the add-on. Then open [Blender](https://www.blender.org/) and install add-on by selecting downloaded `blender-yolo-autolabel.zip` file (without unzipping).
 ![Install Instructions: Edit -> Preferences -> Add-ons -> Install from Disk...](docs/images/install_1.jpg)
 
 After installing it can be found in the right Sidebar (can be shown with `N` button if it's hidden).
